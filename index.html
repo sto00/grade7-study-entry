@@ -4,19 +4,34 @@
 </style></head><body><main><h1>7급 학습서재</h1><p id="status" role="status">컴퓨터의 학습서재에 연결하고 있습니다.</p><p id="detail" class="small">이 주소를 북마크해 두세요. 서버 주소가 바뀌어도 자동으로 찾아갑니다.</p><button id="retry" type="button">다시 연결</button><button id="forget" class="quiet" type="button" hidden>이 브라우저의 자동 연결 해제</button><p class="small">컴퓨터에서 ‘학습서재 시작’을 실행한 동안 사용할 수 있습니다. 학습 기록은 해당 컴퓨터에 저장됩니다.</p></main><script>
 'use strict';
 const statusNode=document.getElementById('status'),detail=document.getElementById('detail'),key='grade7-device-connection';
-let token='',busy=false;
+let token='',busy=false,nextFreshCheck=0,knownEndpoint=null;
 try{token=localStorage.getItem(key)||'';}catch{}
 const supplied=new URLSearchParams(location.hash.slice(1)).get('device');
 const setup=Boolean(supplied&&/^[A-Za-z0-9_-]{43}$/.test(supplied));
 if(setup){token=supplied;try{localStorage.setItem(key,token);}catch{}history.replaceState(null,'',location.pathname+location.search);statusNode.textContent='자동 연결을 저장했습니다. 이 페이지를 북마크해 주세요.';detail.textContent='아이폰 Safari의 공유 버튼에서 책갈피에 추가한 뒤 학습을 시작하세요. 다음부터 북마크를 열면 자동으로 연결됩니다.';document.getElementById('retry').textContent='학습 시작';}
 document.getElementById('forget').hidden=!token;
 document.getElementById('forget').onclick=()=>{try{localStorage.removeItem(key);}catch{}token='';document.getElementById('forget').hidden=true;statusNode.textContent='자동 연결을 해제했습니다. 컴퓨터에 저장된 학습 기록은 그대로 유지됩니다.';};
+async function endpoint(){
+ // A branch URL can remain cached after a restart. Ask the public Contents API
+ // first, then keep the newest answer while limiting unauthenticated API use.
+ if(Date.now()>=nextFreshCheck){
+  nextFreshCheck=Date.now()+90000;
+  try{
+   const response=await fetch('https://api.github.com/repos/sto00/grade7-study-entry/contents/endpoint.json?ref=main&time='+Date.now(),{headers:{Accept:'application/vnd.github.raw+json'},cache:'no-store',signal:AbortSignal.timeout(10000)});
+   if(response.ok){knownEndpoint=await response.json();return knownEndpoint;}
+  }catch{}
+ }
+ try{
+  const response=await fetch('https://raw.githubusercontent.com/sto00/grade7-study-entry/main/endpoint.json?time='+Date.now(),{cache:'no-store',signal:AbortSignal.timeout(10000)});
+  if(response.ok){const value=await response.json();if(!knownEndpoint||Date.parse(value.updatedAt)>Date.parse(knownEndpoint.updatedAt))knownEndpoint=value;}
+ }catch{}
+ if(!knownEndpoint)throw new Error('주소 확인 실패');
+ return knownEndpoint;
+}
 async function connect(){
  if(busy)return;busy=true;
  try{
-  const response=await fetch('https://raw.githubusercontent.com/sto00/grade7-study-entry/main/endpoint.json?time='+Date.now(),{cache:'no-store',signal:AbortSignal.timeout(10000)});
-  if(!response.ok)throw new Error('주소 확인 실패');
-  const info=await response.json();
+  const info=await endpoint();
   if(typeof info.url!=='string'||!/^https:\/\/[a-z0-9-]+\.trycloudflare\.com$/.test(info.url))throw new Error('서버 꺼짐');
   const check=await fetch(info.url+'/api/health',{credentials:'omit',cache:'no-store',signal:AbortSignal.timeout(12000)});
   if(!check.ok||(await check.json()).ready!==true)throw new Error('서버 미연결');
