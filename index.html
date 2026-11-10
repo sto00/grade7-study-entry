@@ -6,9 +6,12 @@
 const statusNode=document.getElementById('status'),detail=document.getElementById('detail'),key='grade7-device-connection';
 let token='',busy=false,nextFreshCheck=0,knownEndpoint=null;
 try{token=localStorage.getItem(key)||'';}catch{}
-const supplied=new URLSearchParams(location.hash.slice(1)).get('device');
-const setup=Boolean(supplied&&/^[A-Za-z0-9_-]{43}$/.test(supplied));
-if(setup){token=supplied;try{localStorage.setItem(key,token);}catch{}history.replaceState(null,'',location.pathname+location.search);statusNode.textContent='자동 연결을 저장했습니다. 이 페이지를 북마크해 주세요.';detail.textContent='아이폰 Safari의 공유 버튼에서 책갈피에 추가한 뒤 학습을 시작하세요. 다음부터 북마크를 열면 자동으로 연결됩니다.';document.getElementById('retry').textContent='학습 시작';}
+const params=new URLSearchParams(location.hash.slice(1));
+const supplied=params.get('device')||params.get('connect');
+const validSupplied=Boolean(supplied&&/^[A-Za-z0-9_-]{43}$/.test(supplied));
+const setup=validSupplied&&!params.has('connect')&&token!==supplied;
+if(validSupplied){token=supplied;try{localStorage.setItem(key,token);}catch{}history.replaceState(null,'',location.pathname+location.search);}
+if(setup){statusNode.textContent='자동 연결을 저장했습니다. 이 페이지를 북마크해 주세요.';detail.textContent='아이폰 Safari의 공유 버튼에서 책갈피에 추가한 뒤 학습을 시작하세요. 다음부터 북마크를 열면 자동으로 연결됩니다.';document.getElementById('retry').textContent='학습 시작';}
 document.getElementById('forget').hidden=!token;
 document.getElementById('forget').onclick=()=>{try{localStorage.removeItem(key);}catch{}token='';document.getElementById('forget').hidden=true;statusNode.textContent='자동 연결을 해제했습니다. 컴퓨터에 저장된 학습 기록은 그대로 유지됩니다.';};
 async function endpoint(){
