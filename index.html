@@ -25,6 +25,7 @@ async function connect(){
  }catch{statusNode.textContent='컴퓨터의 학습서재가 아직 연결되지 않았습니다.';detail.textContent='컴퓨터에서 ‘학습서재 시작’을 실행해 주세요. 연결 상태를 10초마다 자동으로 확인합니다.';}
  finally{busy=false;}
 }
-document.getElementById('retry').onclick=()=>void connect();
-if(!setup){setInterval(()=>void connect(),10000);void connect();}
+let activated=!setup;
+document.getElementById('retry').onclick=()=>{activated=true;void connect();};
+setInterval(()=>{if(activated)void connect();},10000);if(activated)void connect();
 </script></body></html>
